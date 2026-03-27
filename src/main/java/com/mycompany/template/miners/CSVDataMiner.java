@@ -28,8 +28,6 @@ import java.util.Map;
  */
 public class CSVDataMiner extends DataMiner {
  
-    private static final String DELIMITER = ",";
- 
     //Paso variable 1: extracción
     @Override
     protected String extractData(FileChannel channel) throws IOException {

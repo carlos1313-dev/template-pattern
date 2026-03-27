@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
- 
+
 /**
  * Clase abstracta que define el esqueleto del algoritmo de minería de datos.
  *
@@ -23,26 +23,30 @@ import java.nio.file.StandardOpenOption;
  *   y residen aquí una sola vez, eliminando la duplicación.
  */
 public abstract class DataMiner {
- 
+
     // ─── Template Method ────────────────────────────────────────────────────────
     /**
      * Algoritmo completo de minería. Marcado final: ninguna subclase
      * puede alterar el orden de los pasos.
      */
     public final void mine(String path) {
-        try (FileChannel channel = openFile(path)) {
-            String rawData  = extractData(channel);   // canal, no path
+        FileChannel channel = null;
+        try {
+            channel         = openFile(path);
+            String rawData  = extractData(channel);
             Object data     = parseData(rawData);
             String analysis = analyzeData(data);
             sendReport(path, analysis);
         } catch (IOException e) {
             System.err.println("[ERROR] No se pudo procesar '"
-                + path + "': " + e.getMessage());
+                    + path + "': " + e.getMessage());
+        } finally {
+            closeFile(channel, path);
         }
     }
- 
+
     // ─── Pasos concretos ────────────────────────────────────────────────────────
- 
+
     /**
      * Abre el archivo usando un FileChannel (Java NIO) y valida que exista
      * y sea legible antes de continuar con el flujo.
@@ -56,27 +60,27 @@ public abstract class DataMiner {
 
         FileChannel channel = FileChannel.open(filePath, StandardOpenOption.READ);
         System.out.printf("[openFile] Abierto | %s | %.1f KB%n",
-            filePath.getFileName(), (double) Files.size(filePath) / 1024);
+                filePath.getFileName(), (double) Files.size(filePath) / 1024);
         return channel;
     }
- 
+
     /** Analiza los datos ya parseados para producir un resumen textual. */
     private String analyzeData(Object data) {
         String content  = data.toString();
         long words      = countWords(content);
         long lines      = content.lines().count();
         long chars      = content.length();
- 
+
         String summary = String.format(
                 "Líneas: %d | Palabras: %d | Caracteres: %d | Fragmento: \"%s\"",
                 lines, words, chars,
                 content.length() > 60 ? content.substring(0, 60).trim() + "…" : content.trim()
         );
- 
+
         System.out.println("[analyzeData] " + summary);
         return summary;
     }
- 
+
     /** Envía (imprime) el reporte de análisis con marca de tiempo. */
     private void sendReport(String path, String analysis) {
         String fileName = Paths.get(path).getFileName().toString();
@@ -85,7 +89,7 @@ public abstract class DataMiner {
         System.out.println("[sendReport]  Resultado: " + analysis);
         System.out.println("[sendReport]  -------------------------------");
     }
- 
+
     /** Cierra el FileChannel liberando el descriptor del sistema operativo. */
     private void closeFile(FileChannel channel, String path) {
         if (channel != null && channel.isOpen()) {
@@ -97,16 +101,16 @@ public abstract class DataMiner {
             }
         }
     }
- 
+
     //  Utilidad privada
     private long countWords(String text) {
         if (text == null || text.isBlank()) return 0;
         return java.util.Arrays.stream(text.trim().split("\\s+"))
                 .filter(w -> !w.isBlank()).count();
     }
- 
-    // Pasos abstractos (implementados por cada subclase) 
- 
+
+    // Pasos abstractos (implementados por cada subclase)
+
     /**
      * Lee y extrae el contenido crudo del archivo según su formato.
      * @param path ruta absoluta o relativa al archivo
@@ -114,7 +118,7 @@ public abstract class DataMiner {
      * @throws IOException si ocurre un error de lectura
      */
     protected abstract String extractData(FileChannel channel) throws IOException;
- 
+
     /**
      * Transforma el contenido crudo en una representación estructurada.
      * @param rawData texto plano devuelto por extractData()
