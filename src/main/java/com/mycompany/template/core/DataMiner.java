@@ -30,19 +30,14 @@ public abstract class DataMiner {
      * puede alterar el orden de los pasos.
      */
     public final void mine(String path) {
-        FileChannel channel = null;
-        try {
-            channel = openFile(path);
- 
-            String rawData  = extractData(path);        // paso variable
-            Object data     = parseData(rawData);       // paso variable
+        try (FileChannel channel = openFile(path)) {
+            String rawData  = extractData(channel);   // canal, no path
+            Object data     = parseData(rawData);
             String analysis = analyzeData(data);
             sendReport(path, analysis);
- 
         } catch (IOException e) {
-            System.err.println("[ERROR] No se pudo procesar el archivo '" + path + "': " + e.getMessage());
-        } finally {
-            closeFile(channel, path);
+            System.err.println("[ERROR] No se pudo procesar '"
+                + path + "': " + e.getMessage());
         }
     }
  
@@ -54,19 +49,14 @@ public abstract class DataMiner {
      */
     private FileChannel openFile(String path) throws IOException {
         Path filePath = Paths.get(path);
- 
-        if (!Files.exists(filePath)) {
+        if (!Files.exists(filePath))
             throw new IOException("El archivo no existe: " + path);
-        }
-        if (!Files.isReadable(filePath)) {
-            throw new IOException("El archivo no tiene permisos de lectura: " + path);
-        }
- 
+        if (!Files.isReadable(filePath))
+            throw new IOException("Sin permisos de lectura: " + path);
+
         FileChannel channel = FileChannel.open(filePath, StandardOpenOption.READ);
-        long sizeKB = Files.size(filePath) / 1024;
-        System.out.printf("[openFile]    Archivo abierto  | %s | %.1f KB | %d bytes%n",
-                filePath.getFileName(), (double) Files.size(filePath) / 1024,
-                Files.size(filePath));
+        System.out.printf("[openFile] Abierto | %s | %.1f KB%n",
+            filePath.getFileName(), (double) Files.size(filePath) / 1024);
         return channel;
     }
  
@@ -90,10 +80,10 @@ public abstract class DataMiner {
     /** Envía (imprime) el reporte de análisis con marca de tiempo. */
     private void sendReport(String path, String analysis) {
         String fileName = Paths.get(path).getFileName().toString();
-        System.out.println("[sendReport]  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        System.out.println("[sendReport]  -------------------------------");
         System.out.println("[sendReport]  Archivo  : " + fileName);
         System.out.println("[sendReport]  Resultado: " + analysis);
-        System.out.println("[sendReport]  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        System.out.println("[sendReport]  -------------------------------");
     }
  
     /** Cierra el FileChannel liberando el descriptor del sistema operativo. */
@@ -108,14 +98,14 @@ public abstract class DataMiner {
         }
     }
  
-    // ─── Utilidad privada ────────────────────────────────────────────────────────
+    //  Utilidad privada
     private long countWords(String text) {
         if (text == null || text.isBlank()) return 0;
         return java.util.Arrays.stream(text.trim().split("\\s+"))
                 .filter(w -> !w.isBlank()).count();
     }
  
-    // ─── Pasos abstractos (implementados por cada subclase) ─────────────────────
+    // Pasos abstractos (implementados por cada subclase) 
  
     /**
      * Lee y extrae el contenido crudo del archivo según su formato.
@@ -123,7 +113,7 @@ public abstract class DataMiner {
      * @return texto plano con el contenido extraído
      * @throws IOException si ocurre un error de lectura
      */
-    protected abstract String extractData(String path) throws IOException;
+    protected abstract String extractData(FileChannel channel) throws IOException;
  
     /**
      * Transforma el contenido crudo en una representación estructurada.

@@ -32,36 +32,29 @@ import java.util.regex.Pattern;
  */
 public class PDFDataMiner extends DataMiner {
  
-    // ─── Paso variable 1: extracción ────────────────────────────────────────────
+    // Paso variable 1: extracción 
     @Override
-    protected String extractData(String path) throws IOException {
-        System.out.println("[PDFDataMiner] extractData() → leyendo binario PDF con FileChannel...");
+    protected String extractData(FileChannel channel) throws IOException {
+    System.out.println("[PDFDataMiner] extractData() → leyendo binario PDF...");
+
+    long size = channel.size();
+    if (size > 50_000_000L)
+        throw new IOException("PDF demasiado grande (>50 MB): " + size + " bytes");
+
+    ByteBuffer buf   = ByteBuffer.allocate((int) size);
+    int bytesRead    = channel.read(buf);
+    buf.flip();
+
+    String raw = StandardCharsets.ISO_8859_1.decode(buf).toString();
+    if (!raw.startsWith("%PDF-"))
+        throw new IOException("Firma PDF inválida (esperado '%PDF-')");
+
+    System.out.printf("[PDFDataMiner] %d bytes | Versión: %s%n",
+        bytesRead, detectVersion(raw));
+    return raw;
+}
  
-        try (FileChannel channel = FileChannel.open(Paths.get(path), StandardOpenOption.READ)) {
-            long size = channel.size();
-            if (size > 50_000_000L) {
-                throw new IOException("Archivo PDF demasiado grande (>50 MB): " + size + " bytes");
-            }
- 
-            ByteBuffer buffer = ByteBuffer.allocate((int) size);
-            int bytesRead = channel.read(buffer);
-            buffer.flip();
- 
-            // Latin-1 preserva cada byte 1:1, necesario para trabajar con PDF binario
-            String raw = StandardCharsets.ISO_8859_1.decode(buffer).toString();
- 
-            // Validar firma PDF
-            if (!raw.startsWith("%PDF-")) {
-                throw new IOException("El archivo no tiene firma PDF válida (esperado '%PDF-')");
-            }
- 
-            System.out.printf("[PDFDataMiner] Leídos %d bytes | Versión PDF: %s%n",
-                    bytesRead, detectVersion(raw));
-            return raw;
-        }
-    }
- 
-    // ─── Paso variable 2: parseo ─────────────────────────────────────────────────
+    // Paso variable 2: parseo 
     @Override
     protected Object parseData(String rawData) {
         System.out.println("[PDFDataMiner] parseData()   → extrayendo texto de streams BT/ET...");
@@ -84,7 +77,7 @@ public class PDFDataMiner extends DataMiner {
         return sb.toString();
     }
  
-    // ─── Utilidades privadas de parseo PDF ──────────────────────────────────────
+    // Utilidades privadas de parseo PDF 
  
     /**
      * Extrae el texto de todos los streams BT...ET del PDF.

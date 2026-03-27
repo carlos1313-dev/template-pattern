@@ -8,6 +8,8 @@ package com.mycompany.template.miners;
 import com.mycompany.template.core.DataMiner;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -28,29 +30,30 @@ public class CSVDataMiner extends DataMiner {
  
     private static final String DELIMITER = ",";
  
-    // ─── Paso variable 1: extracción ────────────────────────────────────────────
+    //Paso variable 1: extracción
     @Override
-    protected String extractData(String path) throws IOException {
-        System.out.println("[CSVDataMiner] extractData() → leyendo con BufferedReader (NIO)...");
- 
-        StringBuilder content = new StringBuilder();
-        int lineCount = 0;
- 
-        // Files.newBufferedReader usa NIO internamente y maneja el charset correctamente
-        try (BufferedReader reader = Files.newBufferedReader(Paths.get(path), StandardCharsets.UTF_8)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                content.append(line).append("\n");
-                lineCount++;
-            }
+    protected String extractData(FileChannel channel) throws IOException {
+    System.out.println("[CSVDataMiner] extractData() → adaptando canal a Reader...");
+
+    // Channels.newReader adapta el FileChannel a un Reader sin reabrir el archivo
+    StringBuilder content = new StringBuilder();
+    int lineCount = 0;
+
+    try (BufferedReader reader = new BufferedReader(
+            Channels.newReader(channel, StandardCharsets.UTF_8))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+            content.append(line).append("\n");
+            lineCount++;
         }
- 
-        System.out.printf("[CSVDataMiner] Leídas %d líneas → %d caracteres%n",
-                lineCount, content.length());
-        return content.toString().trim();
     }
+
+    System.out.printf("[CSVDataMiner] %d líneas → %d chars%n",
+        lineCount, content.length());
+    return content.toString().trim();
+}
  
-    // ─── Paso variable 2: parseo ─────────────────────────────────────────────────
+    // Paso variable 2: parseo
     @Override
     protected Object parseData(String rawData) {
         System.out.println("[CSVDataMiner] parseData()   → estructurando filas y columnas...");

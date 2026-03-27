@@ -28,30 +28,26 @@ import java.util.regex.Pattern;
  */
 public class DocDataMiner extends DataMiner {
  
-    // ─── Paso variable 1: extracción ────────────────────────────────────────────
+    // Paso variable 1: extracción 
     @Override
-    protected String extractData(String path) throws IOException {
-        System.out.println("[DocDataMiner] extractData() → leyendo con FileChannel + ByteBuffer...");
+    protected String extractData(FileChannel channel) throws IOException {
+    System.out.println("[DocDataMiner] extractData() → leyendo con FileChannel...");
+
+    // Ya no hace FileChannel.open() — usa el canal recibido del template
+    long fileSize  = channel.size();
+    ByteBuffer buf = ByteBuffer.allocate((int) fileSize);
+    int bytesRead  = channel.read(buf);
+    buf.flip();
+
+    String raw     = StandardCharsets.UTF_8.decode(buf).toString();
+    String cleaned = raw.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]", "").trim();
+
+    System.out.printf("[DocDataMiner] %d bytes → %d chars útiles%n",
+        bytesRead, cleaned.length());
+    return cleaned;
+}
  
-        try (FileChannel channel = FileChannel.open(Paths.get(path), StandardOpenOption.READ)) {
-            long fileSize = channel.size();
-            // Lectura completa en un único ByteBuffer (eficiente para archivos < 10 MB)
-            ByteBuffer buffer = ByteBuffer.allocate((int) fileSize);
-            int bytesRead = channel.read(buffer);
-            buffer.flip();
- 
-            // Decodificar como UTF-8 y limpiar caracteres de control (excepto \n \r \t)
-            String raw = StandardCharsets.UTF_8.decode(buffer).toString();
-            String cleaned = raw.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]", "")
-                                .trim();
- 
-            System.out.printf("[DocDataMiner] Leídos %d bytes → %d caracteres útiles%n",
-                    bytesRead, cleaned.length());
-            return cleaned;
-        }
-    }
- 
-    // ─── Paso variable 2: parseo ─────────────────────────────────────────────────
+    // Paso variable 2: parseo 
     @Override
     protected Object parseData(String rawData) {
         System.out.println("[DocDataMiner] parseData()   → extrayendo campos clave-valor...");
