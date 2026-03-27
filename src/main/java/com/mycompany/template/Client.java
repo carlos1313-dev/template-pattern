@@ -8,7 +8,7 @@ package com.mycompany.template;
  *
  * @author sangr
  */
-public class Template {
+public class Client {
 
     public static void main(String[] args) {
         System.out.println("Hello World!");
